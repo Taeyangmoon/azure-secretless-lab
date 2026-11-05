@@ -1,6 +1,6 @@
 const express = require('express');
 
-// 환경변수 "이름"에 이 패턴이 들어 있으면 시크릿이 숨어 있을 가능성이 있다고 본다.
+// If an environment variable NAME matches this pattern, a secret may be hiding in it.
 const SUSPICIOUS_ENV = /(SECRET|PASSWORD|PASSWD|TOKEN|CONNECTION_?STRING|ACCESS_?KEY|ACCOUNT_?KEY|API_?KEY)/i;
 
 function findSuspiciousEnv(env) {
@@ -31,16 +31,16 @@ function createApp({ getSecret, env = process.env }) {
       res.json({ name, value, source: 'Azure Key Vault (Managed Identity)' });
     } catch (err) {
       res.status(502).json({
-        error: 'Key Vault 에서 시크릿을 읽지 못했습니다.',
+        error: 'Failed to read the secret from Key Vault.',
         detail: err.message,
-        hint: 'Managed Identity 에 "Key Vault Secrets User" 역할이 부여되었는지 확인하세요.',
+        hint: 'Check that the Managed Identity has the "Key Vault Secrets User" role.',
       });
     }
   });
 
   app.get('/', (_req, res) => {
     res.type('html').send(`<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Secretless Lab</title>
@@ -52,10 +52,10 @@ function createApp({ getSecret, env = process.env }) {
 </head>
 <body>
   <h1>🔐 Azure Secretless CI/CD Lab</h1>
-  <p>이 앱에는 <b>비밀번호, 연결 문자열, 클라이언트 시크릿이 하나도 없습니다.</b></p>
+  <p>This app contains <b>no passwords, connection strings, or client secrets</b>.</p>
   <button onclick="load('/api/info')">/api/info</button>
   <button onclick="load('/api/secret')">/api/secret</button>
-  <pre id="out">버튼을 눌러보세요.</pre>
+  <pre id="out">Click a button.</pre>
   <script>
     async function load(path) {
       const r = await fetch(path);

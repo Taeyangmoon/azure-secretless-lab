@@ -6,7 +6,7 @@ on:
     paths: ['app/**', '.github/workflows/deploy.yml']
   workflow_dispatch:
 
-# OIDC 토큰을 발급받으려면 id-token: write 권한이 반드시 필요합니다.
+# The id-token: write permission is required to request an OIDC token.
 permissions:
   id-token: write
   contents: read
@@ -30,15 +30,15 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    # Federated Credential 의 subject(repo:<owner>/<repo>:environment:prod)와 일치해야 로그인됩니다.
+    # Must match the Federated Credential subject (repo:<owner>/<repo>:environment:prod) to log in.
     environment: prod
     env:
       IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
-      # 비밀번호/시크릿 없이 로그인: GitHub OIDC 토큰 -> Microsoft Entra ID 토큰 교환
-      # 아래 3개는 비밀이 아니므로 secrets 가 아니라 vars(변수)를 사용합니다.
+      # Passwordless login: exchange the GitHub OIDC token for a Microsoft Entra ID token.
+      # These 3 values are not secrets, so we use vars (variables) instead of secrets.
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -59,7 +59,7 @@ jobs:
           az config set extension.use_dynamic_install=yes_without_prompt extension.dynamic_install_allow_preview=true
           ACR_SERVER="$(az acr show -n '${{ vars.ACR_NAME }}' --query loginServer -o tsv)"
 
-          # 앱 포트(3000)로 변경 (초기 placeholder 이미지는 80 포트 사용)
+          # Switch to the app port (3000). The initial placeholder image uses port 80.
           az containerapp ingress update \
             --name "${{ vars.CONTAINER_APP_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -81,9 +81,9 @@ jobs:
           for i in $(seq 1 20); do
             if curl -fsS "$URL/health"; then
               echo; curl -fsS "$URL/api/info"; echo
-              echo "### 🚀 배포 완료: $URL" >> "$GITHUB_STEP_SUMMARY"
+              echo "### 🚀 Deployed: $URL" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            echo "대기 중... ($i/20)"; sleep 10
+            echo "Waiting... ($i/20)"; sleep 10
           done
-          echo "Smoke test 실패"; exit 1
+          echo "Smoke test failed"; exit 1

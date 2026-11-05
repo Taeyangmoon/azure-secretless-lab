@@ -68,7 +68,7 @@ Login successful.
 
 ## 3. 결과 확인 (5분)
 
-워크플로 **Summary** 에 앱 URL(`🚀 배포 완료`)이 표시됩니다. 터미널에서도 확인할 수 있습니다.
+워크플로 **Summary** 에 앱 URL(`🚀 Deployed: ...`)이 표시됩니다. 터미널에서도 확인할 수 있습니다.
 
 ```bash
 APP_URL=$(az deployment group show -g rg-secretless-lab -n main --query properties.outputs.appUrl.value -o tsv)
@@ -87,7 +87,7 @@ curl -s $APP_URL/api/secret | python3 -m json.tool
 }
 {
   "name": "demo-message",
-  "value": "Hello from Key Vault! 이 값은 코드/환경변수/GitHub Secrets 어디에도 없습니다.",
+  "value": "Hello from Key Vault! This value is not stored in code, environment variables, or GitHub Secrets.",
   "source": "Azure Key Vault (Managed Identity)"
 }
 ```

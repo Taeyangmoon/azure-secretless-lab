@@ -1,5 +1,7 @@
 # 🔐 Azure Secretless CI/CD Hands-on Lab
 
+🌐 **한국어** | [English](README.en.md)
+
 > **"시크릿을 안전하게 보관하는 방법"이 아니라, 아예 "시크릿을 없애는 방법"을 배웁니다.**
 
 GitHub Actions로 Azure에 배포하는 CI/CD 파이프라인과, 그 위에서 동작하는 앱을 **비밀번호·키·연결 문자열 없이(Secretless)** 구성합니다.

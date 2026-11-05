@@ -1,6 +1,6 @@
 name: CI
 
-# 시크릿/Azure 로그인이 전혀 필요 없는 워크플로입니다. (권한: 읽기 전용)
+# This workflow needs no secrets and no Azure login. (Permissions: read-only)
 on:
   pull_request:
     paths: ['app/**', '.github/workflows/ci.yml']
@@ -26,5 +26,5 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - run: npm ci
       - run: npm test
-      - name: Docker 이미지 빌드 검증 (push 하지 않음)
+      - name: Verify the Docker image builds (no push)
         run: docker build -t secretless-app:ci .

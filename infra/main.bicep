@@ -1,24 +1,24 @@
-// Azure Secretless CI/CD Lab - 인프라
-// 시크릿(비밀번호/키/연결 문자열)을 하나도 만들지 않는 것이 목표입니다.
-//  - ACR           : 관리자 계정(admin user) 비활성화, Managed Identity 로만 Pull
-//  - Key Vault     : 액세스 정책 대신 Azure RBAC, Managed Identity 로만 읽기
-//  - Container App : User-assigned Managed Identity 로 ACR Pull + Key Vault 접근
+// Azure Secretless CI/CD Lab - Infrastructure
+// The goal is to create zero secrets (passwords / keys / connection strings).
+//  - ACR           : admin user disabled, pull only via Managed Identity
+//  - Key Vault     : Azure RBAC instead of access policies, read only via Managed Identity
+//  - Container App : User-assigned Managed Identity for ACR pull + Key Vault access
 
 targetScope = 'resourceGroup'
 
-@description('리소스 이름 접두사 (소문자/숫자, 최대 10자)')
+@description('Resource name prefix (lowercase letters/digits, max 10 characters)')
 @maxLength(10)
 param prefix string = 'secretless'
 
 param location string = resourceGroup().location
 
-@description('Key Vault 에 저장할 데모 메시지')
-param demoMessage string = 'Hello from Key Vault! 이 값은 코드/환경변수/GitHub Secrets 어디에도 없습니다.'
+@description('Demo message stored in Key Vault')
+param demoMessage string = 'Hello from Key Vault! This value is not stored in code, environment variables, or GitHub Secrets.'
 
-@description('초기 컨테이너 이미지. 파이프라인이 실행되면 ACR 이미지로 교체됩니다.')
+@description('Initial container image. Replaced by the ACR image when the pipeline runs.')
 param containerImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 
-@description('초기 이미지가 수신하는 포트. 파이프라인이 앱 포트(3000)로 변경합니다.')
+@description('Port the initial image listens on. The pipeline switches it to the app port (3000).')
 param containerPort int = 80
 
 var suffix = uniqueString(resourceGroup().id)
@@ -26,7 +26,7 @@ var acrName = toLower('${prefix}acr${take(suffix, 8)}')
 var keyVaultName = toLower('${prefix}-kv-${take(suffix, 6)}')
 var secretName = 'demo-message'
 
-// 내장 역할 ID
+// Built-in role IDs
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull
 var kvSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
 
@@ -39,8 +39,8 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-// 앱이 사용할 Managed Identity (User-assigned)
-// 앱(Container App)보다 먼저 만들어 두면 권한을 미리 부여할 수 있습니다.
+// Managed Identity used by the app (user-assigned)
+// Creating it before the Container App lets us grant permissions in advance.
 resource appIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: '${prefix}-id-app'
   location: location
@@ -51,7 +51,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   location: location
   sku: { name: 'Basic' }
   properties: {
-    adminUserEnabled: false // 레지스트리 사용자/비밀번호를 쓰지 않는다
+    adminUserEnabled: false // no registry username/password
   }
 }
 
@@ -61,7 +61,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   properties: {
     sku: { family: 'A', name: 'standard' }
     tenantId: subscription().tenantId
-    enableRbacAuthorization: true // 액세스 정책 대신 RBAC
+    enableRbacAuthorization: true // RBAC instead of access policies
     enableSoftDelete: true
     softDeleteRetentionInDays: 7
   }
@@ -126,7 +126,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: containerPort
         transport: 'auto'
       }
-      // 레지스트리 인증도 Managed Identity 로 한다 (username/password 없음)
+      // Registry authentication also uses the Managed Identity (no username/password)
       registries: [
         {
           server: acr.properties.loginServer
@@ -144,7 +144,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '0.5Gi'
           }
           env: [
-            // 아래 값들은 모두 "비밀이 아닌" 설정값입니다.
+            // All of these are non-secret settings.
             { name: 'AZURE_CLIENT_ID', value: appIdentity.properties.clientId }
             { name: 'KEY_VAULT_URL', value: keyVault.properties.vaultUri }
             { name: 'SECRET_NAME', value: secretName }

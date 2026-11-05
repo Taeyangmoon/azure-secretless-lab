@@ -11,21 +11,21 @@ async function withServer(options, fn) {
   }
 }
 
-test('/health 는 ok 를 반환한다', async () => {
+test('/health returns ok', async () => {
   await withServer({ getSecret: async () => 'x', env: {} }, async (base) => {
     const body = await (await fetch(`${base}/health`)).json();
     assert.strictEqual(body.status, 'ok');
   });
 });
 
-test('/api/secret 은 Key Vault 값을 반환한다', async () => {
+test('/api/secret returns the Key Vault value', async () => {
   await withServer({ getSecret: async () => 'hello', env: {} }, async (base) => {
     const body = await (await fetch(`${base}/api/secret`)).json();
     assert.strictEqual(body.value, 'hello');
   });
 });
 
-test('/api/secret 은 실패 시 502 와 힌트를 반환한다', async () => {
+test('/api/secret returns 502 with a hint on failure', async () => {
   const getSecret = async () => { throw new Error('403 Forbidden'); };
   await withServer({ getSecret, env: {} }, async (base) => {
     const res = await fetch(`${base}/api/secret`);
@@ -34,14 +34,14 @@ test('/api/secret 은 실패 시 502 와 힌트를 반환한다', async () => {
   });
 });
 
-test('시크릿처럼 보이는 환경변수 이름을 탐지한다', () => {
+test('detects secret-looking environment variable names', () => {
   assert.deepStrictEqual(
     findSuspiciousEnv({ AZURE_CLIENT_ID: 'a', DB_PASSWORD: 'b', STORAGE_ACCOUNT_KEY: 'c', KEY_VAULT_URL: 'd' }),
     ['DB_PASSWORD', 'STORAGE_ACCOUNT_KEY'],
   );
 });
 
-test('/api/info 는 secretless 여부를 알려준다', async () => {
+test('/api/info reports whether the app is secretless', async () => {
   const env = { AZURE_CLIENT_ID: 'id', APP_VERSION: 'abc123' };
   await withServer({ getSecret: async () => 'x', env }, async (base) => {
     const body = await (await fetch(`${base}/api/info`)).json();

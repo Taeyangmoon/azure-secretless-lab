@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Lab 1: 리소스 그룹 + 인프라(Bicep) 배포
+# Lab 1: Create the resource group and deploy the infrastructure (Bicep)
 set -euo pipefail
 
 RG="${RG:-rg-secretless-lab}"
 LOCATION="${LOCATION:-koreacentral}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "▶ 구독: $(az account show --query '[name,id]' -o tsv | tr '\t' ' / ')"
-echo "▶ 리소스 그룹 생성: $RG ($LOCATION)"
+echo "▶ Subscription: $(az account show --query '[name,id]' -o tsv | tr '\t' ' / ')"
+echo "▶ Creating resource group: $RG ($LOCATION)"
 az group create --name "$RG" --location "$LOCATION" --output none
 
-echo "▶ Bicep 배포 중... (약 3~5분)"
+echo "▶ Deploying Bicep... (about 3-5 minutes)"
 az deployment group create \
   --name main \
   --resource-group "$RG" \
@@ -18,4 +18,4 @@ az deployment group create \
   --query 'properties.outputs.{acr:acrName.value, app:containerAppName.value, url:appUrl.value, keyVault:keyVaultName.value}' \
   --output table
 
-echo "✅ 인프라 배포 완료"
+echo "✅ Infrastructure deployed"
