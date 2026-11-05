@@ -1,0 +1,89 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+# OIDC 토큰을 발급받으려면 id-token: write 권한이 반드시 필요합니다.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # Federated Credential 의 subject(repo:<owner>/<repo>:environment:prod)와 일치해야 로그인됩니다.
+    environment: prod
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # 비밀번호/시크릿 없이 로그인: GitHub OIDC 토큰 -> Microsoft Entra ID 토큰 교환
+      # 아래 3개는 비밀이 아니므로 secrets 가 아니라 vars(변수)를 사용합니다.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build & push image (ACR Tasks)
+        run: |
+          az acr build \
+            --registry "${{ vars.ACR_NAME }}" \
+            --image "secretless-app:${IMAGE_TAG}" \
+            --image "secretless-app:latest" \
+            ./app
+
+      - name: Deploy to Container Apps
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt extension.dynamic_install_allow_preview=true
+          ACR_SERVER="$(az acr show -n '${{ vars.ACR_NAME }}' --query loginServer -o tsv)"
+
+          # 앱 포트(3000)로 변경 (초기 placeholder 이미지는 80 포트 사용)
+          az containerapp ingress update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --target-port 3000
+
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${ACR_SERVER}/secretless-app:${IMAGE_TAG}" \
+            --set-env-vars "APP_VERSION=${IMAGE_TAG::7}"
+
+      - name: Smoke test
+        run: |
+          URL="https://$(az containerapp show \
+            --name '${{ vars.CONTAINER_APP_NAME }}' \
+            --resource-group '${{ vars.AZURE_RESOURCE_GROUP }}' \
+            --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "URL: $URL"
+          for i in $(seq 1 20); do
+            if curl -fsS "$URL/health"; then
+              echo; curl -fsS "$URL/api/info"; echo
+              echo "### 🚀 배포 완료: $URL" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "대기 중... ($i/20)"; sleep 10
+          done
+          echo "Smoke test 실패"; exit 1

@@ -1,0 +1,17 @@
+{
+  "name": "Azure Secretless Lab",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": { "installBicep": true },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "cd app && npm ci",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-bicep",
+        "github.vscode-github-actions"
+      ]
+    }
+  }
+}
